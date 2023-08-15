@@ -1,8 +1,8 @@
 #! /bin/sh
 
 #SBATCH --job-name=base_task
-#SBATCH --output=base_task/awesome.out # redirect stdout
-#SBATCH --error=base_task/awesome.err # redirect stderr
+#SBATCH --output=stdout # redirect stdout
+#SBATCH --error=stderr # redirect stderr
 #SBATCH --partition=studentbatch # (see resources section)
 #SBATCH --time=1 # max time (minutes)
 #SBATCH --signal=USR1@120 # how to end job when time’s up
