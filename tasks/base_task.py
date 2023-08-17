@@ -1,3 +1,6 @@
+import os
+import glob
+import tqdm
 import torch
 import argparse
 import datasets
@@ -5,13 +8,9 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-from transformers import MT5Tokenizer, MT5ForConditionalGeneration
-import tqdm
-import os, glob
-
-import sys
-sys.path.append(".")
 from my_datasets.xnli_dataset import XNLIDataset
+from transformers import MT5Tokenizer, MT5ForConditionalGeneration
+
 
 
 class BaseTask:
@@ -24,6 +23,7 @@ class BaseTask:
         self.model = None
         self.train_data_loader = None
         self.val_data_loader = None
+        self.test_data_loader = None
         self.train_losses = None
         self.val_losses = None
         self.val_steps = None
@@ -34,6 +34,7 @@ class BaseTask:
         self._init()
         self._train()
         self._plot()
+        self._test()
 
     def _parse_args(self):
         self.parser.add_argument("--task",
@@ -91,13 +92,20 @@ class BaseTask:
         train_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.TRAIN],
                                     special_token=self.args.special_token,
                                     input_max_length=self.args.input_max_length,
-                                    target_max_length=self.args.target_max_length)
+                                    target_max_length=self.args.target_max_length,
+                                    batch_size=self.args.batch_size)
         self.train_data_loader = DataLoader(train_dataset, shuffle=True)
         val_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.VALIDATION],
                                   special_token=self.args.special_token,
                                   input_max_length=self.args.input_max_length,
-                                  target_max_length=self.args.target_max_length)
+                                  target_max_length=self.args.target_max_length,
+                                  batch_size=self.args.batch_size)
         self.val_data_loader = DataLoader(val_dataset, shuffle=True)
+        test_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.TEST],
+                                    special_token=self.args.special_token,
+                                    input_max_length=self.args.input_max_length,
+                                    target_max_length=self.args.target_max_length)
+        self.test_data_loader = DataLoader(test_dataset, shuffle=True)
 
         self.train_losses = list()
         self.val_losses = list()
@@ -126,7 +134,8 @@ class BaseTask:
                     input_ids = val_batch["input_ids"].to(self.device)
                     labels = val_batch["labels"].to(self.device)
 
-                    outputs = self.model(input_ids=input_ids, labels=labels)
+                    with torch.no_grad():
+                        outputs = self.model(input_ids=input_ids, labels=labels)
                     val_loss = outputs.loss.detach().cpu().numpy()
                     self.val_losses.append(val_loss)
                     self.val_steps.append(batch_idx)
@@ -143,11 +152,30 @@ class BaseTask:
 
                     torch.save(self.model.state_dict(),
                                self.model_path.joinpath(f"epoch_{epoch + 1}_step_{batch_idx + 1}.pt"))
-                
-                # if batch_idx == 11:
-                #     break
 
             print(f"Epoch {epoch + 1}/{self.args.epochs}, Loss: {np.mean(self.train_losses):.4f}")
+
+    def _test(self):
+        correct_predictions = 0
+        for idx, example in tqdm.tqdm(enumerate(self.test_data_loader)):
+            input_ids = example["input_ids"]
+            premise = example["premise"]
+            hypothesis = example["hypothesis"]
+
+            with torch.no_grad():
+                output = self.model.generate(input_ids)
+            output = tokenizer.decode(output[0], skip_special_tokens=True)
+
+            if output == hypothesis:
+                correct_predictions += 1
+            
+            print(f"Test {idx}: Premise: {premise}")
+            print(f"Hypothesis: {hypothesis}")
+            print(f"Generated Output: {output}")
+            print("=" * 50)
+
+        accuracy = correct_predictions / len(self.test_data_loader)
+        print(f"Final Accuracy: {accuracy:.2%}")
     
     def _load_model_weights(self):
         
