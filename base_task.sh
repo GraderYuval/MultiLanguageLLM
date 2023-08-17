@@ -4,7 +4,6 @@
 #SBATCH --output=outputs/%A/output_%a.out # redirect stdout
 #SBATCH --error=errors/%A/error_%a.err # redirect stderr
 #SBATCH --partition=studentbatch # (see resources section)
-#SBATCH --time=1 # max time (minutes)
 #SBATCH --signal=USR1@120 # how to end job when time’s up
 #SBATCH --nodes=1 # number of machines
 #SBATCH --ntasks=1 # number of processes
