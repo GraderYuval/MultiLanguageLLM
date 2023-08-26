@@ -93,18 +93,26 @@ class BaseTask:
                                     special_token=self.args.special_token,
                                     input_max_length=self.args.input_max_length,
                                     target_max_length=self.args.target_max_length,
-                                    batch_size=self.args.batch_size)
+                                    batch_size=self.args.batch_size,
+                                    target_language='english',
+                                    translate=False)
         self.train_data_loader = DataLoader(train_dataset, shuffle=True)
         val_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.VALIDATION],
                                   special_token=self.args.special_token,
                                   input_max_length=self.args.input_max_length,
                                   target_max_length=self.args.target_max_length,
-                                  batch_size=self.args.batch_size)
+                                  batch_size=self.args.batch_size,
+                                  target_language='english',
+                                  translate=False
+                                  )
         self.val_data_loader = DataLoader(val_dataset, shuffle=True)
         test_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.TEST],
                                     special_token=self.args.special_token,
                                     input_max_length=self.args.input_max_length,
-                                    target_max_length=self.args.target_max_length)
+                                    target_max_length=self.args.target_max_length,
+                                   target_language='english',
+                                   translate=False
+                                   )
         self.test_data_loader = DataLoader(test_dataset, shuffle=True)
 
         self.train_losses = list()

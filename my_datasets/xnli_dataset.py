@@ -1,8 +1,8 @@
 from torch.utils.data import Dataset
 
-
 class XNLIDataset(Dataset):
-    def __init__(self, tokenizer, dataset, special_token='', input_max_length=100, target_max_length=10):
+    def __init__(self, tokenizer, dataset, special_token='', input_max_length=100, target_max_length=10, target_language='english',
+                 translate=False):
         self.tokenizer = tokenizer
         self.premises = dataset["premise"]
         self.hypotheses = dataset["hypothesis"]
@@ -10,6 +10,8 @@ class XNLIDataset(Dataset):
         self.special_token = special_token
         self.input_max_length = input_max_length
         self.target_max_length = target_max_length
+        self.target_language = target_language
+        self.translate = translate  # added translate flag
 
     def __len__(self):
         return len(self.premises)
@@ -35,15 +37,26 @@ class XNLIDataset(Dataset):
         }
 
     def _create_input_text(self, premise, hypothesis):
-        return "\n".join([f"{self.special_token} "
-                          "Please identify whether the premise entails or contradicts "
-                          "the hypothesis in the following premise and hypothesis. "
-                          "The answer should be exact \"entailment\", \"contradiction\", or \"neutral\".",
-                          f"Premise: {premise}",
-                          f"Hypothesis: {hypothesis}"
-                          ])
+        instructions = []
 
-    @staticmethod
+        # Add translation instruction if translate is True
+        if self.translate:
+            instructions.append(f"Translate the following text into {self.target_language}. "
+                                "Make sure your translation is accurate. "
+                                "Then, based on the translated text, compute the task:")
+
+        # Add main task instruction
+        instructions.extend([
+            f"{self.special_token} Please identify whether the premise entails or contradicts "
+            "the hypothesis in the following premise and hypothesis. "
+            "The answer should be exact \"entailment\", \"contradiction\", or \"neutral\".",
+            f"Premise: {premise}",
+            f"Hypothesis: {hypothesis}"
+        ])
+
+        return "\n".join(instructions)
+
+@staticmethod
     def _create_target_text(label):
         match label:
             case 0:
