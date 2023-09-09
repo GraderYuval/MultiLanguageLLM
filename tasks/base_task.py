@@ -93,15 +93,13 @@ class BaseTask:
                                     special_token=self.args.special_token,
                                     input_max_length=self.args.input_max_length,
                                     target_max_length=self.args.target_max_length,
-                                    batch_size=self.args.batch_size,
                                     target_language='english',
                                     translate=False)
-        self.train_data_loader = DataLoader(train_dataset, shuffle=True)
+        self.train_data_loader = DataLoader(train_dataset, batch_size=self.args.batch_size, shuffle=True)
         val_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.VALIDATION],
                                   special_token=self.args.special_token,
                                   input_max_length=self.args.input_max_length,
                                   target_max_length=self.args.target_max_length,
-                                  batch_size=self.args.batch_size,
                                   target_language='english',
                                   translate=False
                                   )
@@ -166,13 +164,13 @@ class BaseTask:
     def _test(self):
         correct_predictions = 0
         for idx, example in tqdm.tqdm(enumerate(self.test_data_loader)):
-            input_ids = example["input_ids"]
+            input_ids = example["input_ids"].to(self.device)
             premise = example["premise"]
             hypothesis = example["hypothesis"]
 
             with torch.no_grad():
                 output = self.model.generate(input_ids)
-            output = tokenizer.decode(output[0], skip_special_tokens=True)
+            output = self.tokenizer.decode(output[0], skip_special_tokens=True)
 
             if output == hypothesis:
                 correct_predictions += 1

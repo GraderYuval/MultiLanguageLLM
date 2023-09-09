@@ -34,6 +34,8 @@ class XNLIDataset(Dataset):
                                padding="max_length",
                                truncation=True,
                                return_tensors="pt")["input_ids"].flatten(),
+            "premise": premise,
+            "hypothesis": hypothesis
         }
 
     def _create_input_text(self, premise, hypothesis):
@@ -56,7 +58,7 @@ class XNLIDataset(Dataset):
 
         return "\n".join(instructions)
 
-@staticmethod
+    @staticmethod
     def _create_target_text(label):
         match label:
             case 0:
