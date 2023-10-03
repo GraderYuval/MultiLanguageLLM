@@ -1,4 +1,5 @@
 import os
+import abc
 import glob
 import tqdm
 import torch
@@ -12,8 +13,7 @@ from my_datasets.xnli_dataset import XNLIDataset
 from transformers import MT5Tokenizer, MT5ForConditionalGeneration
 
 
-
-class BaseTask:
+class BaseTask(abc.ABC):
     def __init__(self):
         self.parser = argparse.ArgumentParser()
         self.args = None
@@ -36,17 +36,10 @@ class BaseTask:
         if self.args.only_test == 0:
             self._train()
             self._plot()
-        
         self._test()
 
     def _parse_args(self):
-        self.parser.add_argument("--task",
-                                 type=str,
-                                 default="xnli")
         self.parser.add_argument("--data_language",
-                                 type=str,
-                                 default="en")
-        self.parser.add_argument("--language",
                                  type=str,
                                  default="en")
         self.parser.add_argument("--model_name",
@@ -58,12 +51,6 @@ class BaseTask:
         self.parser.add_argument("--batch_size",
                                  type=int,
                                  default=8)
-        self.parser.add_argument("--input_max_length",
-                                 type=int,
-                                 default=200)
-        self.parser.add_argument("--target_max_length",
-                                 type=int,
-                                 default=4)
         self.parser.add_argument("--lr",
                                  type=float,
                                  default=1e-5)
@@ -72,7 +59,7 @@ class BaseTask:
                                  default=1)
         self.parser.add_argument("--val_steps_scale",
                                  type=int,
-                                 default=10000)
+                                 default=100)
         self.parser.add_argument("--ckpt_dir",
                                  type=str,
                                  default="./models")
@@ -87,52 +74,33 @@ class BaseTask:
         self.args = self._parse_args()
         print(f'{self.args=}')
 
-        self.tokenizer = MT5Tokenizer.from_pretrained(self.args.model_name, legacy=False, cache_dir = "/home/dcor/nadavorzech/source/MultiLanguageLLM/.cahce")
+        self.tokenizer = MT5Tokenizer.from_pretrained(self.args.model_name, legacy=False)
         self.tokenizer.add_special_tokens(special_tokens_dict={"additional_special_tokens": [self.args.special_token]})
-        model = MT5ForConditionalGeneration.from_pretrained(self.args.model_name, cache_dir = "/home/dcor/nadavorzech/source/MultiLanguageLLM/.cahce")
+        model = MT5ForConditionalGeneration.from_pretrained(self.args.model_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f'{self.device=}')
         self.model = model.to(self.device)
 
-        self.model_path = Path(f"{self.args.ckpt_dir}/{self.args.task}/{self.args.language}/{self.args.model_name}")
+        self.model_path = Path(f"{self.args.ckpt_dir}/{self._get_task_name()}/{self.args.data_language}/{self.args.model_name}")
         self.model_path.mkdir(parents=True, exist_ok=True)
         self._load_model_weights()
 
-        dataset = datasets.load_dataset(self.args.task, self.args.data_language, cache_dir = "/home/dcor/nadavorzech/source/MultiLanguageLLM/.cahce")
-        train_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.TRAIN],
-                                    special_token=self.args.special_token,
-                                    input_max_length=self.args.input_max_length,
-                                    target_max_length=self.args.target_max_length,
-                                    target_language='english',
-                                    translate=False,
-                                    language=self.args.data_language
-                                    )
-        self.train_data_loader = DataLoader(train_dataset, batch_size=self.args.batch_size, shuffle=True)
-        val_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.VALIDATION],
-                                  special_token=self.args.special_token,
-                                  input_max_length=self.args.input_max_length,
-                                  target_max_length=self.args.target_max_length,
-                                  target_language='english',
-                                  translate=False,
-                                  language=self.args.data_language
-                                  )
-        self.val_data_loader = DataLoader(val_dataset, shuffle=True)
-        test_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.TEST],
-                                    special_token=self.args.special_token,
-                                    input_max_length=self.args.input_max_length,
-                                    target_max_length=self.args.target_max_length,
-                                   target_language='english',
-                                   translate=False,
-                                   language=self.args.data_language
-                                   )
-        self.test_data_loader = DataLoader(test_dataset, shuffle=True)
-
+        self._init_data_loaders()
         self.train_losses = list()
         self.val_losses = list()
         self.val_steps = list()
 
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=self.args.lr)
         self.loss_fn = torch.nn.CrossEntropyLoss()
+        
+    @staticmethod
+    @abc.abstractmethod
+    def _get_task_name():
+        pass
+    
+    @abc.abstractmethod
+    def _init_data_loaders(self):
+        pass
 
     def _train(self):
         val_data_loader_it = iter(self.val_data_loader)
@@ -178,28 +146,14 @@ class BaseTask:
     def _test(self):
         correct_predictions = 0
         for idx, example in tqdm.tqdm(enumerate(self.test_data_loader)):
-            input_ids = example["input_ids"].to(self.device)
-            premise = example["premise"]
-            hypothesis = example["hypothesis"]
-            labels = example["labels"].to(self.device)
-
-
-            with torch.no_grad():
-                output = self.model.generate(input_ids)
-            output = self.tokenizer.decode(output[0], skip_special_tokens=True)
-
-            if output == self.tokenizer.decode(labels[0], skip_special_tokens=True):
+            if self._test_example(self, example, idx):
                 correct_predictions += 1
-            
-            print(f"Test {idx}: Premise: {premise}")
-            print(f"Hypothesis: {hypothesis}")
-            print(f"Generated Output: {output}")
-            print(f"Label: {labels}")
-            print(f"Decoded Label: {self.tokenizer.decode(labels[0], skip_special_tokens=True)}")
-            print("=" * 50)
-
         accuracy = correct_predictions / len(self.test_data_loader)
         print(f"Final Accuracy: {accuracy:.2%}")
+        
+    @abc.abstractmethod
+    def _test_example(self, example, idx):
+        pass
     
     def _load_model_weights(self):
         
@@ -225,8 +179,3 @@ class BaseTask:
         plt.xlabel('Steps')
         plt.ylabel('Loss')
         plt.savefig(self.model_path.joinpath("Training and Validation Losses.png"))
-
-
-if __name__ == "__main__":
-    task = BaseTask()
-    task.run()
