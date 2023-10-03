@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=base_task_%A_%a
+#SBATCH --job-name=xquad_task_%A_%a
 #SBATCH --output=outputs/%A/output_%a.out # redirect stdout
 #SBATCH --error=errors/%A/error_%a.err # redirect stderr
 #SBATCH --partition=studentbatch # (see resources section)
@@ -13,11 +13,11 @@
 #SBATCH --array=0-14
 
 # Define your list of languages
-languages=("ar" "bg" "de" "el" "en" "es" "fr" "hi" "ru" "sw" "th" "tr" "ur" "vi" "zh")
+languages=("ar" "de" "el" "en" "es" "hi" "ru" "th" "tr" "vi" "zh" "ro")
 
 # Get the language for this job
 language=${languages[$SLURM_ARRAY_TASK_ID]}
 
 # Run your command for the specific language
 echo "Processing language: $language"
-python -m tasks.base_task --language "$language"
+python -m tasks.xquad_task --language "$language"
