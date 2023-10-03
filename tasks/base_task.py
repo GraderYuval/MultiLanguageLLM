@@ -59,7 +59,7 @@ class BaseTask(abc.ABC):
                                  default=1)
         self.parser.add_argument("--val_steps_scale",
                                  type=int,
-                                 default=100)
+                                 default=1000)
         self.parser.add_argument("--ckpt_dir",
                                  type=str,
                                  default="./models")
@@ -146,7 +146,7 @@ class BaseTask(abc.ABC):
     def _test(self):
         correct_predictions = 0
         for idx, example in tqdm.tqdm(enumerate(self.test_data_loader)):
-            if self._test_example(self, example, idx):
+            if self._test_example(example, idx):
                 correct_predictions += 1
         accuracy = correct_predictions / len(self.test_data_loader)
         print(f"Final Accuracy: {accuracy:.2%}")
