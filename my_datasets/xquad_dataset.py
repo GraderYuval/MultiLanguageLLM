@@ -45,5 +45,5 @@ class XQUADDataset(Dataset):
         instructions = []
         if self.translate:
             instructions.append(build_translation_prompt(self.target_language, self.language))
-        instructions.extend(build_xquad_prompt(context, question, self.language))
+        instructions.extend(build_xquad_prompt(self.special_token, context, question, self.language))
         return "\n".join(instructions)

@@ -1,6 +1,4 @@
-special_token = "<idf.lang>"
-
-def build_xnli_prompt(premise, hypothesis, language):
+def build_xnli_prompt(special_token, premise, hypothesis, language):
     prompt_dict = {
         "en": [
             f"{special_token} Please identify whether the premise entails or contradicts "
@@ -164,7 +162,7 @@ def build_xnli_target(label, language):
         return target_dict[label]["en"]
     return target_dict[label][language]
     
-def build_xquad_prompt(context, question, language):
+def build_xquad_prompt(special_token, context, question, language):
     prompt_dict = {
         "en": [
             f"{special_token} Please answer the question according to the context in the following context and question.",

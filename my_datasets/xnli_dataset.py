@@ -46,5 +46,5 @@ class XNLIDataset(Dataset):
         instructions = []
         if self.translate:
             instructions.append(build_translation_prompt(self.target_language, self.language))
-        instructions.extend(build_xnli_prompt(premise, hypothesis, self.language))
+        instructions.extend(build_xnli_prompt(self.special_token, premise, hypothesis, self.language))
         return "\n".join(instructions)
