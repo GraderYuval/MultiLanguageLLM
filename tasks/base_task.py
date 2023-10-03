@@ -29,17 +29,23 @@ class BaseTask:
         self.val_steps = None
         self.optimizer = None
         self.loss_fn = None
+        self.last_epoch = 0
 
     def run(self):
         self._init()
-        self._train()
-        self._plot()
+        if self.args.only_test == 0:
+            self._train()
+            self._plot()
+        
         self._test()
 
     def _parse_args(self):
         self.parser.add_argument("--task",
                                  type=str,
                                  default="xnli")
+        self.parser.add_argument("--data_language",
+                                 type=str,
+                                 default="en")
         self.parser.add_argument("--language",
                                  type=str,
                                  default="en")
@@ -66,10 +72,14 @@ class BaseTask:
                                  default=1)
         self.parser.add_argument("--val_steps_scale",
                                  type=int,
-                                 default=1000)
+                                 default=10000)
         self.parser.add_argument("--ckpt_dir",
                                  type=str,
                                  default="./models")
+        self.parser.add_argument("--only_test",
+                                 type=int,
+                                 default=0
+                                 )
 
         return self.parser.parse_args()
 
@@ -77,9 +87,9 @@ class BaseTask:
         self.args = self._parse_args()
         print(f'{self.args=}')
 
-        self.tokenizer = MT5Tokenizer.from_pretrained(self.args.model_name, legacy=False)
+        self.tokenizer = MT5Tokenizer.from_pretrained(self.args.model_name, legacy=False, cache_dir = "/home/dcor/nadavorzech/source/MultiLanguageLLM/.cahce")
         self.tokenizer.add_special_tokens(special_tokens_dict={"additional_special_tokens": [self.args.special_token]})
-        model = MT5ForConditionalGeneration.from_pretrained(self.args.model_name)
+        model = MT5ForConditionalGeneration.from_pretrained(self.args.model_name, cache_dir = "/home/dcor/nadavorzech/source/MultiLanguageLLM/.cahce")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f'{self.device=}')
         self.model = model.to(self.device)
@@ -88,20 +98,23 @@ class BaseTask:
         self.model_path.mkdir(parents=True, exist_ok=True)
         self._load_model_weights()
 
-        dataset = datasets.load_dataset(self.args.task, self.args.language)
+        dataset = datasets.load_dataset(self.args.task, self.args.data_language, cache_dir = "/home/dcor/nadavorzech/source/MultiLanguageLLM/.cahce")
         train_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.TRAIN],
                                     special_token=self.args.special_token,
                                     input_max_length=self.args.input_max_length,
                                     target_max_length=self.args.target_max_length,
                                     target_language='english',
-                                    translate=False)
+                                    translate=False,
+                                    language=self.args.data_language
+                                    )
         self.train_data_loader = DataLoader(train_dataset, batch_size=self.args.batch_size, shuffle=True)
         val_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.VALIDATION],
                                   special_token=self.args.special_token,
                                   input_max_length=self.args.input_max_length,
                                   target_max_length=self.args.target_max_length,
                                   target_language='english',
-                                  translate=False
+                                  translate=False,
+                                  language=self.args.data_language
                                   )
         self.val_data_loader = DataLoader(val_dataset, shuffle=True)
         test_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.TEST],
@@ -109,7 +122,8 @@ class BaseTask:
                                     input_max_length=self.args.input_max_length,
                                     target_max_length=self.args.target_max_length,
                                    target_language='english',
-                                   translate=False
+                                   translate=False,
+                                   language=self.args.data_language
                                    )
         self.test_data_loader = DataLoader(test_dataset, shuffle=True)
 
@@ -122,7 +136,7 @@ class BaseTask:
 
     def _train(self):
         val_data_loader_it = iter(self.val_data_loader)
-        for epoch in range(self.args.epochs):
+        for epoch in range(self.last_epoch, self.args.epochs):
             for batch_idx, batch in tqdm.tqdm(enumerate(self.train_data_loader)):
                 input_ids = batch["input_ids"].to(self.device)
                 labels = batch["labels"].to(self.device)
@@ -167,17 +181,21 @@ class BaseTask:
             input_ids = example["input_ids"].to(self.device)
             premise = example["premise"]
             hypothesis = example["hypothesis"]
+            labels = example["labels"].to(self.device)
+
 
             with torch.no_grad():
                 output = self.model.generate(input_ids)
             output = self.tokenizer.decode(output[0], skip_special_tokens=True)
 
-            if output == hypothesis:
+            if output == self.tokenizer.decode(labels[0], skip_special_tokens=True):
                 correct_predictions += 1
             
             print(f"Test {idx}: Premise: {premise}")
             print(f"Hypothesis: {hypothesis}")
             print(f"Generated Output: {output}")
+            print(f"Label: {labels}")
+            print(f"Decoded Label: {self.tokenizer.decode(labels[0], skip_special_tokens=True)}")
             print("=" * 50)
 
         accuracy = correct_predictions / len(self.test_data_loader)
@@ -195,8 +213,10 @@ class BaseTask:
         ckpt_files_list = sorted([ckpt.split('_') for ckpt in ckpt_files_list], key=sorting_key)
         
         latest_ckpt_path = "_".join(ckpt_files_list[-1])
-        self.model.load_state_dict(torch.load(latest_ckpt_path))
-
+        print(latest_ckpt_path)
+        ckpt_data = torch.load(latest_ckpt_path)
+        self.model.load_state_dict(ckpt_data)
+        self.last_epoch = int(latest_ckpt_path.split('_')[1])
 
     def _plot(self):
         plt.plot(self.train_losses, label='Training Loss')
