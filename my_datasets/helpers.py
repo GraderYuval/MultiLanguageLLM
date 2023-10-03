@@ -163,7 +163,74 @@ def build_xnli_target(label, language):
     if language is None:
         return target_dict[label]["en"]
     return target_dict[label][language]
-        
+    
+def build_xquad_prompt(context, question, language):
+    prompt_dict = {
+        "en": [
+            f"{special_token} Please answer the question according to the context in the following context and question.",
+            f"Context: {context}.",
+            f"Question: {question}."
+        ],
+        "ar": [
+            f"{special_token} .من فضلك، قم بالإجابة على السؤال وفقًا للسياق في السياق التالي والسؤال التالي",
+            f".{context} :السياق",
+            f".{question} :السؤال"
+        ],
+        "de": [
+            f"{special_token} Bitte beantworten Sie die Frage gemäß dem Kontext im folgenden Zusammenhang und der folgenden Frage.",
+            f"Kontext: {context}.",
+            f"Frage: {question}."
+        ],
+        "el": [
+            f"{special_token} Παρακαλώ απαντήστε στην ερώτηση σύμφωνα με τον περιβάλλοντα χώρο στον ακόλουθο πλαίσιο και την ερώτηση.",
+            f"Πλαίσιο: {context}.",
+            f"Ερώτηση: {question}."
+        ],
+        "es": [
+            f"{special_token} Por favor, responde a la pregunta de acuerdo al contexto en el siguiente contexto y pregunta.",
+            f"Contexto: {context}.",
+            f"Pregunta: {question}."
+        ],
+        "hi": [
+            f"{special_token} कृपया निम्नलिखित संदर्भ और प्रश्न के अनुसार प्रश्न का उत्तर दें।",
+            f"संदर्भ: {context}।",
+            f"प्रश्न: {question}।"
+        ],
+        "ru": [
+            f"{special_token} Пожалуйста, ответьте на вопрос в соответствии с контекстом в следующем контексте и вопросе.",
+            f"Контекст: {context}.",
+            f"Вопрос: {question}."
+        ],
+        "th": [
+            f"{special_token} โปรดตอบคำถามตามบริบทในบริบทและคำถามต่อไปนี้.",
+            f"บริบท: {context}.",
+            f"คำถาม: {question}."
+        ],
+        "tr": [
+            f"{special_token} Lütfen aşağıdaki bağlam ve soruya göre soruyu yanıtlayın.",
+            f"Bağlam: {context}.",
+            f"Soru: {question}."
+        ],
+        "vi": [
+            f"{special_token} Vui lòng trả lời câu hỏi theo ngữ cảnh trong ngữ cảnh và câu hỏi sau đây.",
+            f"Ngữ cảnh: {context}.",
+            f"Câu hỏi: {question}."
+        ],
+        "zh": [
+            f"{special_token} 请根据以下的背景和问题回答问题。",
+            f"背景: {context}。",
+            f"问题: {question}。"
+        ],
+        "ro": [
+            f"{special_token} Vă rugăm să răspundeți la întrebare în funcție de contextul din următorul context și întrebare.",
+            f"Context: {context}.",
+            f"Întrebare: {question}."
+        ],
+    }
+    if language is None:
+        return prompt_dict["en"]
+    return prompt_dict[language]
+    
 def build_translation_prompt(target_language, language):
     prompt_dict = {
         "en": 
