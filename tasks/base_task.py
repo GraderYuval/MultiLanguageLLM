@@ -82,9 +82,9 @@ class BaseTask(abc.ABC):
         self.args = self._parse_args()
         print(f'{self.args=}')
 
-        self.tokenizer = MT5Tokenizer.from_pretrained(self.args.model_name, legacy=False)
+        self.tokenizer = MT5Tokenizer.from_pretrained(self.args.model_name, legacy=False, cache_dir=".cache")
         self.tokenizer.add_special_tokens(special_tokens_dict={"additional_special_tokens": [self.args.special_token]})
-        model = MT5ForConditionalGeneration.from_pretrained(self.args.model_name)
+        model = MT5ForConditionalGeneration.from_pretrained(self.args.model_name, cache_dir=".cache")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f'{self.device=}')
         self.model = model.to(self.device)
@@ -129,8 +129,8 @@ class BaseTask(abc.ABC):
             exit()
 
         model_name = 'facebook/mbart-large-50-many-to-many-mmt'
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_name, cache_dir=".cahce")
-        tokenizer = AutoTokenizer.from_pretrained(model_name, src_lang=lang_code, tgt_lang="en_XX", cache_dir=".cahce")
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name, cache_dir=".cache")
+        tokenizer = AutoTokenizer.from_pretrained(model_name, src_lang=lang_code, tgt_lang="en_XX", cache_dir=".cache")
         translator = pipeline('translation_XX_to_YY', model=model, tokenizer=tokenizer, src_lang=lang_code, tgt_lang="en_XX",device=self.device) 
 
         return translator
