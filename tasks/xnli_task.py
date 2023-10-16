@@ -2,7 +2,7 @@ import torch
 import datasets
 from tasks.base_task import BaseTask
 from torch.utils.data import DataLoader
-from my_datasets.xnli_dataset import XNLIDataset
+from my_datasets.xnli_dataset import XNLIDataset, TwoStageXNLIDataset
 
 class XNLITask(BaseTask):
     @staticmethod
@@ -11,25 +11,29 @@ class XNLITask(BaseTask):
     
     def _init_data_loaders(self):
         dataset = datasets.load_dataset(self._get_task_name(), self.args.data_language)
-        train_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.TRAIN],
+        train_dataset = TwoStageXNLIDataset(self.tokenizer, dataset[datasets.Split.TRAIN],
                                     special_token=self.args.special_token,
                                     target_language='english',
                                     translate=False,
-                                    language=self.args.data_language
+                                    language=self.args.data_language,
+                                    trans_model=self.trans_model
+
                                     )
         self.train_data_loader = DataLoader(train_dataset, batch_size=self.args.batch_size, shuffle=True)
-        val_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.VALIDATION],
+        val_dataset = TwoStageXNLIDataset(self.tokenizer, dataset[datasets.Split.VALIDATION],
                                   special_token=self.args.special_token,
                                   target_language='english',
                                   translate=False,
-                                  language=self.args.data_language
+                                  language=self.args.data_language,
+                                  trans_model=self.trans_model
                                   )
         self.val_data_loader = DataLoader(val_dataset, shuffle=True)
-        test_dataset = XNLIDataset(self.tokenizer, dataset[datasets.Split.TEST],
+        test_dataset = TwoStageXNLIDataset(self.tokenizer, dataset[datasets.Split.TEST],
                                     special_token=self.args.special_token,
                                    target_language='english',
                                    translate=False,
-                                   language=self.args.data_language
+                                   language=self.args.data_language,
+                                    trans_model=self.trans_model
                                    )
         self.test_data_loader = DataLoader(test_dataset, shuffle=True)
         

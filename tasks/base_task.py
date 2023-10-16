@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from my_datasets.xnli_dataset import XNLIDataset
 from transformers import MT5Tokenizer, MT5ForConditionalGeneration
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 
 
 class BaseTask(abc.ABC):
@@ -21,6 +22,7 @@ class BaseTask(abc.ABC):
         self.tokenizer = None
         self.device = None
         self.model = None
+        self.trans_model = None
         self.train_data_loader = None
         self.val_data_loader = None
         self.test_data_loader = None
@@ -42,6 +44,9 @@ class BaseTask(abc.ABC):
         self.parser.add_argument("--data_language",
                                  type=str,
                                  default="en")
+        self.parser.add_argument("--language",
+                                 type=str,
+                                 default="en")
         self.parser.add_argument("--model_name",
                                  type=str,
                                  default="google/mt5-small")
@@ -51,6 +56,9 @@ class BaseTask(abc.ABC):
         self.parser.add_argument("--batch_size",
                                  type=int,
                                  default=8)
+        self.parser.add_argument("--input_max_length",
+                                 type=int,
+                                 default=200)
         self.parser.add_argument("--lr",
                                  type=float,
                                  default=1e-5)
@@ -85,6 +93,7 @@ class BaseTask(abc.ABC):
         self.model_path.mkdir(parents=True, exist_ok=True)
         self._load_model_weights()
 
+        self.trans_model = self._init_translation_pipeline()
         self._init_data_loaders()
         self.train_losses = list()
         self.val_losses = list()
@@ -92,7 +101,40 @@ class BaseTask(abc.ABC):
 
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=self.args.lr)
         self.loss_fn = torch.nn.CrossEntropyLoss()
+    
+    def _init_translation_pipeline(self):
+        def _lang2code(language):
+            lang_dict = {
+            "ru": "ru_RU",
+            "vi": "vi_VN",
+            "bg": None,
+            "es": "es_XX",
+            "de": "de_DE",
+            "fr": "fr_XX",
+            "el": None,
+            "ar": "ar_AR",
+            "en": "en_XX",
+            "hi": "hi_IN",
+            "zh": "zh_CN",
+            "sw": "sw_KE",
+            "th": "th_TH",
+            "ur": "ur_PK",
+            "tr": "tr_TR"
+            }
+
+            return lang_dict[language]
         
+        lang_code = _lang2code(self.args.data_language)
+        if lang_code is None:
+            exit()
+
+        model_name = 'facebook/mbart-large-50-many-to-many-mmt'
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name, cache_dir=".cahce")
+        tokenizer = AutoTokenizer.from_pretrained(model_name, src_lang=lang_code, tgt_lang="en_XX", cache_dir=".cahce")
+        translator = pipeline('translation_XX_to_YY', model=model, tokenizer=tokenizer, src_lang=lang_code, tgt_lang="en_XX",device=self.device) 
+
+        return translator
+    
     @staticmethod
     @abc.abstractmethod
     def _get_task_name():

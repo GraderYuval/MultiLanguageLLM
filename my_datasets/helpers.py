@@ -292,7 +292,7 @@ def build_translation_prompt(target_language, language):
             "Ardından, çevrilen metne dayanarak görevi gerçekleştirin:",
         "ro":
             f"Traduceți următorul text în {target_language}. " 
-            "Asigurați-vă că traducerea dumneavoastră este precisă. 
+            "Asigurați-vă că traducerea dumneavoastră este precisă. "
             "Apoi, pe baza textului tradus, calculați sarcina:"
     }
     if language is None:
