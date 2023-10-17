@@ -93,7 +93,7 @@ class BaseTask(abc.ABC):
         self.model_path.mkdir(parents=True, exist_ok=True)
         self._load_model_weights()
 
-        self.trans_model = self._init_translation_pipeline()
+        # self.trans_model = self._init_translation_pipeline()
         self._init_data_loaders()
         self.train_losses = list()
         self.val_losses = list()
@@ -190,6 +190,8 @@ class BaseTask(abc.ABC):
         for idx, example in tqdm.tqdm(enumerate(self.test_data_loader)):
             if self._test_example(example, idx):
                 correct_predictions += 1
+            # if idx == 50:
+            #     break
         accuracy = correct_predictions / len(self.test_data_loader)
         print(f"Final Accuracy: {accuracy:.2%}")
         
